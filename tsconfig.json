@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    // 根目录
+    "rootDir": ".",
+    "strict": true,
+    "esModuleInterop": true,
+    "target": "ES5",
+    "moduleResolution": "Node",
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "resolveJsonModule": true,
+    "module": "ESNext",
+    "noImplicitAny": false,
+    "downlevelIteration": true,
+    "sourceMap": true,
+    "removeComments": false,
+    "lib": ["esnext", "DOM"],
+    // 设置快捷导入
+    "baseUrl": ".",
+    "paths": {
+      "@vue/*": [
+        "packages/*/src"
+      ]
+    }
+  },
+  "include": ["packages/*/src"]
+}
