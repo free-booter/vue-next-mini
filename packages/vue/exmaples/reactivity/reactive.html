@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <script src="../../dist/vue.js"></script>
+</head>
+
+<body>
+  <script>
+    const { reactive, effect } = Vue
+    const product = reactive({ price: 5, quantity: 2, brands: ['Apple', 'HuaWei', 'Xiaomi', 'Redmin'], person: { name: 'Tome', age: 18 } })
+    effect(() => {
+      console.log("total:", product.price * product.quantity);
+    })
+    // product.brands.push('Samsung')
+    // TODO:为什么这样不会触发一次effect
+    product.person.name = 'Tom'
+  </script>
+</body>
+
+</html>

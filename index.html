@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+
+<body>
+  <script>
+    let person = {
+      name: "张三",
+      age: 18,
+      friends: [
+        { name: "李四", age: 19 },
+        { name: "王五", age: 20 },
+      ],
+      address: "北京",
+      brands: ["苹果", "华为"],
+      car: {
+        name: "奥迪",
+        color: "红色",
+      },
+    };
+
+    const isObject = (val) => typeof val === "object" && val !== null;
+
+    const baseHandler = {
+      get(target, key, receiver) {
+        console.log("get", key);
+        const res = Reflect.get(target, key, receiver);
+        if (isObject(res)) {
+          return deepProxy(res, baseHandler);
+        }
+        return res;
+      },
+      set(target, key, value) {
+        console.log("set", key, value);
+        return Reflect.set(target, key, value);
+      },
+    };
+
+    const deepProxy = (target, handler) => {
+      const proxy = new Proxy(target, handler);
+      return proxy;
+    };
+    const personProxy = deepProxy(person, baseHandler);
+    personProxy.car.color = 'black'
+  </script>
+</body>
+
+</html>
