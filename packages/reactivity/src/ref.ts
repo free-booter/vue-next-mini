@@ -1,7 +1,10 @@
 import { hasChanged } from "@vue/share";
-import { activeEffect, track, trackEffects, trigger, triggerEffects } from "./effect";
-import { isObject, reactive, toReactive } from "./reactive";
+import { activeEffect, trackEffects, triggerEffects } from "./effect";
+import { toReactive } from "./reactive";
 import { createDep, Dep } from "./dep";
+import { ReactiveFlags } from "./constants";
+
+export const isRef = (value: any): boolean => !!value[ReactiveFlags.IS_REF]
 
 export function ref(value: any) {
   return createRef(value)
@@ -10,7 +13,6 @@ export function ref(value: any) {
 export function createRef(rawValue: any) {
   return new RefImpl(rawValue)
 }
-
 
 class RefImpl<T> {
   private _value: T

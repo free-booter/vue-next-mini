@@ -16,6 +16,18 @@ var Vue = (function (exports) {
     PERFORMANCE OF THIS SOFTWARE.
     ***************************************************************************** */
 
+    function __values(o) {
+        var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+        if (m) return m.call(o);
+        if (o && typeof o.length === "number") return {
+            next: function () {
+                if (o && i >= o.length) o = void 0;
+                return { value: o && o[i++], done: !o };
+            }
+        };
+        throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+    }
+
     function __read(o, n) {
         var m = typeof Symbol === "function" && o[Symbol.iterator];
         if (!m) return o;
@@ -43,20 +55,32 @@ var Vue = (function (exports) {
         return to.concat(ar || Array.prototype.slice.call(from));
     }
 
+    var hasChanged = function (value, oldValue) { return !Object.is(value, oldValue); };
+    var isFunction = function (val) {
+        return typeof val === 'function';
+    };
+    var extend = Object.assign;
+
     var createDep = function (effects) {
         return new Set(effects);
     };
 
     var targetMap = new WeakMap();
-    // 存储正在运行的effect
-    function effect(fn) {
+    function effect(fn, options) {
         var _effect = new ReactiveEffect(fn);
-        _effect.run();
+        if (options) {
+            extend(_effect, options);
+        }
+        if (!options || !options.lazy) {
+            _effect.run();
+        }
     }
     var activeEffect;
     var ReactiveEffect = /** @class */ (function () {
-        function ReactiveEffect(fn) {
+        function ReactiveEffect(fn, scheduler) {
+            if (scheduler === void 0) { scheduler = null; }
             this.fn = fn;
+            this.scheduler = scheduler;
         }
         ReactiveEffect.prototype.run = function () {
             activeEffect = this;
@@ -104,13 +128,46 @@ var Vue = (function (exports) {
         triggerEffects(dep);
     }
     function triggerEffects(dep) {
+        var e_1, _a, e_2, _b;
         var effects = Array.isArray(dep) ? dep : __spreadArray([], __read(dep), false);
-        effects.forEach(function (effect) {
-            triggerEffect(effect);
-        });
+        try {
+            for (var effects_1 = __values(effects), effects_1_1 = effects_1.next(); !effects_1_1.done; effects_1_1 = effects_1.next()) {
+                var effect_1 = effects_1_1.value;
+                if (effect_1.computed) {
+                    triggerEffect(effect_1);
+                }
+            }
+        }
+        catch (e_1_1) { e_1 = { error: e_1_1 }; }
+        finally {
+            try {
+                if (effects_1_1 && !effects_1_1.done && (_a = effects_1.return)) _a.call(effects_1);
+            }
+            finally { if (e_1) throw e_1.error; }
+        }
+        try {
+            for (var effects_2 = __values(effects), effects_2_1 = effects_2.next(); !effects_2_1.done; effects_2_1 = effects_2.next()) {
+                var effect_2 = effects_2_1.value;
+                if (!effect_2.computed) {
+                    triggerEffect(effect_2);
+                }
+            }
+        }
+        catch (e_2_1) { e_2 = { error: e_2_1 }; }
+        finally {
+            try {
+                if (effects_2_1 && !effects_2_1.done && (_b = effects_2.return)) _b.call(effects_2);
+            }
+            finally { if (e_2) throw e_2.error; }
+        }
     }
     function triggerEffect(effect) {
-        effect.run();
+        if (effect.scheduler) {
+            effect.scheduler();
+        }
+        else {
+            effect.run();
+        }
     }
 
     var get = createGetter();
@@ -137,6 +194,16 @@ var Vue = (function (exports) {
         set: set
     };
 
+    var ReactiveFlags;
+    (function (ReactiveFlags) {
+        ReactiveFlags["SKIP"] = "__v_skip";
+        ReactiveFlags["IS_REACTIVE"] = "__v_isReactive";
+        ReactiveFlags["IS_READONLY"] = "__v_isReadonly";
+        ReactiveFlags["IS_SHALLOW"] = "__v_isShallow";
+        ReactiveFlags["RAW"] = "__v_raw";
+        ReactiveFlags["IS_REF"] = "__v_isRef";
+    })(ReactiveFlags || (ReactiveFlags = {}));
+
     var reactiveMap = new WeakMap();
     var isObject = function (value) { return value !== null && typeof value === 'object'; };
     var toReactive = function (value) { return isObject(value) ? reactive(value) : value; };
@@ -156,12 +223,12 @@ var Vue = (function (exports) {
         }
         //2.创建Proxy
         var proxy = new Proxy(target, mutableHandlers);
+        proxy[ReactiveFlags.IS_REACTIVE] = true;
         //3.将proxy保存到map
         reactiveMap.set(target, proxy);
         return proxy;
     }
-
-    var hasChanged = function (value, oldValue) { return !Object.is(value, oldValue); };
+    var isReactive = function (value) { return !!value[ReactiveFlags.IS_REACTIVE]; };
 
     function ref(value) {
         return createRef(value);
@@ -207,9 +274,157 @@ var Vue = (function (exports) {
         }
     }
 
+    var _a;
+    function computed(getterOrOptions) {
+        var getter;
+        var setter;
+        // 判断是否为函数
+        if (isFunction(getterOrOptions)) {
+            getter = getterOrOptions;
+        }
+        else {
+            getter = getterOrOptions.get;
+            setter = getterOrOptions.set;
+        }
+        var cRef = new ComputedRefImpl(getter, setter);
+        return cRef;
+    }
+    var ComputedRefImpl = /** @class */ (function () {
+        function ComputedRefImpl(fn, setter) {
+            var _this = this;
+            this.fn = fn;
+            this.setter = setter;
+            this.dep = undefined;
+            this.__v_isRef = true;
+            this[_a] = true;
+            this._dirty = true;
+            this.effect = new ReactiveEffect(fn, function () {
+                if (!_this._dirty) {
+                    _this._dirty = true;
+                    triggerRefValue(_this);
+                }
+            });
+            this.effect.computed = this;
+        }
+        Object.defineProperty(ComputedRefImpl.prototype, "value", {
+            get: function () {
+                trackRefValue(this);
+                if (this._dirty) {
+                    this._dirty = false;
+                    this._value = this.effect.run();
+                }
+                return this._value;
+            },
+            set: function (val) {
+                if (this.__v_isReadonly) {
+                    console.warn('Write operation failed: computed value is readonly', val);
+                }
+            },
+            enumerable: false,
+            configurable: true
+        });
+        return ComputedRefImpl;
+    }());
+    _a = ReactiveFlags.IS_READONLY;
+
+    // 调度器（更改执行顺序、执行规则）
+    var pendingPreFlushCbs = [];
+    var isFlushPending = false;
+    var resolvedPromise = Promise.resolve();
+    function queuePreFlushCb(cb) {
+        queueCb(cb, pendingPreFlushCbs);
+    }
+    function queueCb(cb, pendingQueue) {
+        pendingQueue.push(cb);
+        queueFlush();
+    }
+    function queueFlush() {
+        if (!isFlushPending) {
+            isFlushPending = true;
+            resolvedPromise.then(flushJobs);
+        }
+    }
+    function flushJobs() {
+        isFlushPending = false;
+        flushPreFlushCbs();
+    }
+    function flushPreFlushCbs() {
+        if (pendingPreFlushCbs.length) {
+            var activePreFlushCbs = __spreadArray([], __read(new Set(pendingPreFlushCbs)), false);
+            pendingPreFlushCbs.length = 0;
+            for (var i = 0; i < activePreFlushCbs.length; i++) {
+                activePreFlushCbs[i]();
+            }
+        }
+    }
+
+    function watch(source, cb, options) {
+        return doWatch(source, cb, options);
+    }
+    function doWatch(source, cb, _a) {
+        var _b = _a === void 0 ? {} : _a, immediate = _b.immediate, deep = _b.deep;
+        var getter;
+        if (isReactive(source)) {
+            getter = function () { return source; };
+            deep = true;
+        }
+        else {
+            getter = function () { };
+        }
+        var oldValue = {};
+        var job = function () {
+            if (cb) {
+                var newValue = effect.run();
+                if (deep || hasChanged(oldValue, newValue)) {
+                    cb(newValue, oldValue);
+                    oldValue = newValue;
+                }
+            }
+        };
+        if (cb && deep) {
+            var baseGetter_1 = getter;
+            getter = function () { return traverse(baseGetter_1()); };
+        }
+        var scheduler = function () { return queuePreFlushCb(job); };
+        var effect = new ReactiveEffect(getter, scheduler);
+        if (cb) {
+            if (immediate) {
+                job();
+            }
+            else {
+                oldValue = effect.run();
+            }
+        }
+        else {
+            effect.run();
+        }
+    }
+    function traverse(value, seen) {
+        if (seen === void 0) { seen = new Set(); }
+        if (!isObject(value))
+            return value;
+        if (seen.has(value))
+            return value;
+        seen.add(value);
+        if (Array.isArray(value)) {
+            for (var i = 0; i < value.length; i++) {
+                traverse(value[i], seen);
+            }
+        }
+        else {
+            for (var key in value) {
+                traverse(value[key], seen);
+            }
+        }
+        return value;
+    }
+
+    exports.computed = computed;
     exports.effect = effect;
+    exports.queuePreFlushCb = queuePreFlushCb;
     exports.reactive = reactive;
     exports.ref = ref;
+    exports.watch = watch;
 
     Object.defineProperty(exports, '__esModule', { value: true });
 

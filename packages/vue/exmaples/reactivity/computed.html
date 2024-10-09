@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <script src="../../dist/vue.js"></script>
+</head>
+
+<body>
+  <script>
+    const { computed, reactive, effect } = Vue
+    const product = reactive({ price: 5, quantity: 2 })
+    const totalPrice = computed(() => product.price * product.quantity)
+    effect(() => {
+      console.log('输出', totalPrice.value);
+      console.log('输出', totalPrice.value);
+    })
+    product.price = 10
+  </script>
+</body>
+
+</html>

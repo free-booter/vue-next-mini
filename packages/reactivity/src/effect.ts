@@ -1,17 +1,33 @@
+import { extend } from "@vue/share"
+import { ComputedRefImpl } from "./computed"
 import { createDep, Dep } from "./dep"
 
 type KeyToDepMap = Map<any, Dep>
 const targetMap = new WeakMap<any, KeyToDepMap>()
 
 // 存储正在运行的effect
-export function effect<T = any>(fn: () => T) {
+export interface ReactiveEffectOptions {
+  lazy?: boolean
+  scheduler?: EffectScheduler
+}
+export function effect<T = any>(fn: () => T, options?: ReactiveEffectOptions) {
   const _effect = new ReactiveEffect(fn)
-  _effect.run()
+
+  if (options) {
+    extend(_effect, options)
+  }
+
+  if (!options || !options.lazy) {
+    _effect.run()
+  }
 }
 
 export let activeEffect: ReactiveEffect | undefined
+export type EffectScheduler = (...args: any[]) => any
 export class ReactiveEffect<T = any> {
-  constructor(public fn: () => T) { }
+  computed?: ComputedRefImpl<T>
+
+  constructor(public fn: () => T, public scheduler: EffectScheduler | null = null) { }
 
   run() {
     activeEffect = this
@@ -33,13 +49,13 @@ export function track(target: object, key: unknown) {
   }
 
   let dep = depsMap.get(key)
-  if(!dep) {
+  if (!dep) {
     depsMap.set(key, (dep = createDep()))
   }
   trackEffects(dep)
 }
 
-export function trackEffects(dep){
+export function trackEffects(dep) {
   dep.add(activeEffect)
 }
 
@@ -55,17 +71,30 @@ export function trigger(target: object, key: string | symbol) {
   const depsMap = targetMap.get(target)
   if (!depsMap) return
   const dep: Dep | undefined = depsMap.get(key)
-  if(!dep) return
+  if (!dep) return
   triggerEffects(dep)
 }
 
 export function triggerEffects(dep: Dep) {
   const effects = Array.isArray(dep) ? dep : [...dep]
-  effects.forEach(effect => {
-    triggerEffect(effect)
-  })
+
+  for (const effect of effects) {
+    if (effect.computed) {
+      triggerEffect(effect)
+    }
+  }
+
+  for (const effect of effects) {
+    if (!effect.computed) {
+      triggerEffect(effect)
+    }
+  }
 }
 
 export function triggerEffect(effect: ReactiveEffect) {
-  effect.run()
+  if (effect.scheduler) {
+    effect.scheduler()
+  } else {
+    effect.run()
+  }
 }

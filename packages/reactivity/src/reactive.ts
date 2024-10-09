@@ -1,4 +1,5 @@
 import { mutableHandlers } from "./baseHandlers"
+import { ReactiveFlags } from "./constants";
 
 const reactiveMap = new WeakMap<object, any>()
 export const isObject = (value: any) => value !== null && typeof value === 'object'
@@ -26,8 +27,11 @@ export function createReactiveObject(target: object, mutableHandlers: ProxyHandl
   }
   //2.创建Proxy
   const proxy = new Proxy(target, mutableHandlers)
+  proxy[ReactiveFlags.IS_REACTIVE] = true
   //3.将proxy保存到map
   reactiveMap.set(target, proxy)
   return proxy
 }
+
+export const isReactive = (value: object): boolean => !!value[ReactiveFlags.IS_REACTIVE]
 

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <script src="../../dist/vue.js"></script>
+</head>
+
+<body>
+  <script>
+    const { reactive, effect, queuePreFlushCb} = Vue
+    const obj = reactive({ counts: 1 })
+    effect(() => {
+      console.log(obj.counts);
+    }, {
+      scheduler() {
+        queuePreFlushCb(() => {
+          console.log(obj.counts);
+        });
+      }
+    })
+    obj.counts = 2
+    obj.counts = 3
+    obj.counts = 4
+    console.log('代码结束');
+
+  </script>
+</body>
+
+</html>

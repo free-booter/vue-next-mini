@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <script src="../../dist/vue.js"></script>
+</head>
+
+<body>
+  <script>
+    const { ref, effect } = Vue
+    const counts = ref(1)
+    effect(() => {
+      console.log(counts.value);
+    }, {
+      lazy: true
+    })
+    counts.value = 2
+    console.log('代码结束');
+    
+  </script>
+</body>
+
+</html>
